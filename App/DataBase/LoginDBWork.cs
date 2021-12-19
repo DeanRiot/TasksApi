@@ -1,9 +1,17 @@
-﻿using TasksApi.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using TasksApi.Models;
 
 namespace TasksApi.App.DataBase
 {
     public class LoginDBWork
     {
+        private DbContextOptions<tasks_dbContext> Options { get; set; }
+        public LoginDBWork() =>
+            Options = new DbContextOptionsBuilder<tasks_dbContext>().Options;
+        
+        public LoginDBWork(DbContextOptions<tasks_dbContext> Options)=>
+            this.Options = Options;
+
         /// <summary>
         /// Добавить нового пользователя в базу данных
         /// </summary>
@@ -11,24 +19,35 @@ namespace TasksApi.App.DataBase
         /// <exception cref="InvalidOperationException">В случае, если пользователь уже существует</exception>
         public void AddUser(Models.LoginModel user)
         {
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
-                Login login = null;
-                login = context.Logins.First(l => l.Login1.Equals(user.Login));
-                if (login is null)
+                try
                 {
-                    login = new Login()
+                    var login = context.Logins.First(l => l.Login1.Equals(user.Login));
+                }
+                catch (InvalidOperationException e)
+                {
+                    var login = new Login()
                     {
                         Login1 = user.Login,
                         Password = user.Password
                     };
-                }  
-                else 
-                {
-                    throw new InvalidOperationException("User Exists");
+                    context.Logins.Add(login);
+                    context.SaveChanges();
+                    return;
                 }
-                context.Logins.Add(login);
-                context.SaveChanges();
+                catch(ArgumentNullException e)
+                {
+                    var login = new Login()
+                    {
+                        Login1 = user.Login,
+                        Password = user.Password
+                    };
+                    context.Logins.Add(login);
+                    context.SaveChanges();
+                    return;
+                }
+                throw new InvalidOperationException("User Exists");
             }
         }
         
@@ -40,23 +59,29 @@ namespace TasksApi.App.DataBase
         /// <exception cref="NullReferenceException">Вслучае, если пользователь не зарегестрирован</exception>
         public bool CheckLogin(Models.LoginModel user)
         {
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
-                Login login = null;
-                login = context.Logins.First(l => l.Login1.Equals(user.Login));
-                if (login is null)
+                try
+                {
+                    var login = context.Logins.First(l => l.Login1.Equals(user.Login));
+                    return login.Password.Equals(user.Password);
+                }
+                catch
                 {
                     throw new NullReferenceException("User Not Exists");
                 }
-                else
-                {
-                    login = new Login()
-                    {
-                        Login1 = user.Login,
-                        Password = user.Password
-                    };
-                }
-                return login.Password.Equals(user.Password);
+            }
+        }
+        /// <summary>
+        /// Возвращает User ID
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        public int GetID(Models.LoginModel user)
+        {
+            using (var context = new tasks_dbContext(Options))
+            {
+                return context.Logins.First(u => u.Login1.Equals(user.Login)).Id;
             }
         }
     }

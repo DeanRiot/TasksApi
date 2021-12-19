@@ -1,9 +1,16 @@
-﻿using TasksApi.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using TasksApi.Models;
 
 namespace TasksApi.App.DataBase
 {
     public class TasksDBWork
     {
+
+        private DbContextOptions<tasks_dbContext> Options { get; set; }
+        public TasksDBWork() =>  Options = new DbContextOptionsBuilder<tasks_dbContext>().Options;
+
+        public TasksDBWork(DbContextOptions<tasks_dbContext> Options) => this.Options = Options;
+        
         /// <summary>
         /// Возвращает список задач для заданного пользователя
         /// </summary>
@@ -12,12 +19,11 @@ namespace TasksApi.App.DataBase
         public List<Models.TaskModel> GetAllTasks(int userID)
         {
             List<Models.TaskModel> tasks = new List<Models.TaskModel>();
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
-                var usr = context.Logins.First(l => l.Id == userID);
                 foreach (var task in context.Tasks)
                 {
-                    if (usr.Id == task.Userid)
+                    if (userID == task.Userid)
                     {
                         tasks.Add(new Models.TaskModel()
                         {
@@ -39,7 +45,7 @@ namespace TasksApi.App.DataBase
         /// <param name="task">Задача</param>
         public void AddTask(int userID, Models.TaskModel task)
         {
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
                 context.Tasks.Add(new TasksApi.Models.Task()
                 {
@@ -49,6 +55,7 @@ namespace TasksApi.App.DataBase
                     Ended = false,
                     Enddate = task.EndDate
                 });
+                context.SaveChanges();
             }
         }
         /// <summary>
@@ -59,11 +66,11 @@ namespace TasksApi.App.DataBase
         public List<Models.TaskModel> GetTodayTasks(int userID)
         {
             var tasks = new List<Models.TaskModel>();
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
                 foreach (var task in context.Tasks)
                 {
-                    if (task.Userid.Equals(userID) && task.Enddate.Equals(DateTime.Now))
+                    if (task.Userid.Equals(userID) && task.Enddate.Equals(DateTime.Today) && !task.Ended)
                     {
                         tasks.Add(new Models.TaskModel()
                         {
@@ -86,7 +93,7 @@ namespace TasksApi.App.DataBase
         public List<Models.TaskModel> GetEnded(int userId)
         {
             var tasks = new List<Models.TaskModel>();
-            using (var context = new tasks_dbContext()){
+            using (var context = new tasks_dbContext(Options)){
                 foreach(var task in context.Tasks){
                     if(task.Userid.Equals(userId) && task.Ended) {
                         tasks.Add(new Models.TaskModel()
@@ -110,11 +117,11 @@ namespace TasksApi.App.DataBase
         public List<Models.TaskModel> GetInProcess(int userID)
         {
             List<Models.TaskModel> tasks = new List<Models.TaskModel>();
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
                 foreach(var task in context.Tasks)
                 {
-                    if (task.Userid.Equals(userID) && !task.Ended)
+                    if (task.Userid.Equals(userID) && !task.Ended && task.Enddate.Date>=DateTime.Today)
                     {
                         tasks.Add(new App.Models.TaskModel()
                         {
@@ -137,11 +144,11 @@ namespace TasksApi.App.DataBase
         public List<Models.TaskModel> GetOldTasks(int userID)
         {
             List<Models.TaskModel> tasks = new List<Models.TaskModel>();
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
                 foreach (var task in context.Tasks)
                 {
-                    if (task.User.Equals(userID) && task.Enddate<DateTime.Now && !task.Ended)
+                    if (task.Userid.Equals(userID) && task.Enddate.Date<DateTime.Today && !task.Ended)
                     {
                         tasks.Add(new Models.TaskModel()
                         {
@@ -179,17 +186,15 @@ namespace TasksApi.App.DataBase
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public Models.SortedModel GetPreviewTasks(int userID)
+        public Dictionary<string, List<Models.TaskModel>> GetPreviewTasks(int userID)
         {
-            var preview = new Models.SortedModel();
-            var today = GetTodayTasks(userID);
-            var ended = GetEnded(userID);
-            var proc = GetInProcess(userID);
-            var old = GetOldTasks(userID);
-            preview.Today = GetFirstElements(today);
-            preview.InProcess = GetFirstElements(proc);
-            preview.Old = GetFirstElements(old);
-            preview.Ended = GetFirstElements(ended);
+            var preview = new Dictionary<string, List<Models.TaskModel>>()
+            {
+                {"today",GetFirstElements(GetTodayTasks(userID))},
+                {"ended", GetFirstElements(GetEnded(userID))},
+                {"process",GetFirstElements(GetInProcess(userID))},
+                {"old",GetFirstElements(GetOldTasks(userID))}
+            };
             return preview;
         }
         /// <summary>
@@ -215,11 +220,25 @@ namespace TasksApi.App.DataBase
         /// <exception cref="NotImplementedException"></exception>
         public void SetStatus(int userID, int TaskID, bool status)
         {
-            using (var context = new tasks_dbContext())
+            using (var context = new tasks_dbContext(Options))
             {
                 var task = context.Tasks.First(t => t.Userid == userID && t.Id == TaskID);
                 task.Ended = status;
                 context.Update(task);
+                context.SaveChanges();
+            }
+        }
+        /// <summary>
+        /// Удаляет задачу из базы данных
+        /// </summary>
+        /// <param name="UserID"></param>
+        /// <param name="TaskID"></param>
+        public void DelTask(int UserID, int TaskID)
+        {
+            using (var context = new tasks_dbContext(Options))
+            {
+                var task = context.Tasks.First(t => t.Userid == UserID && t.Id == TaskID);
+                context.Remove(task);
                 context.SaveChanges();
             }
         }

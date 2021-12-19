@@ -10,7 +10,7 @@ namespace TasksApi.Models
         public string Theader { get; set; }
         public string Ttext { get; set; }
         public DateTime Enddate { get; set; }
-        public bool? Ended { get; set; }
+        public bool Ended { get; set; }
 
         public virtual Login User { get; set; }
     }

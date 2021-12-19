@@ -32,18 +32,18 @@ namespace TasksApi.Models
         {
             modelBuilder.Entity<Login>(entity =>
             {
-                entity.ToTable("logins");
+                entity.ToTable("login");
 
                 entity.Property(e => e.Id).HasColumnName("id");
 
                 entity.Property(e => e.Login1)
                     .IsRequired()
-                    .HasMaxLength(100)
+                    .HasMaxLength(30)
                     .HasColumnName("login");
 
                 entity.Property(e => e.Password)
                     .IsRequired()
-                    .HasMaxLength(25)
+                    .HasMaxLength(30)
                     .HasColumnName("password");
             });
 
